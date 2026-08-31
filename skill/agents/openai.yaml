@@ -1,0 +1,16 @@
+interface:
+  display_name: go performance engineering
+  short_description: Evidence-driven Go performance engineering for CPU, memory, GC,
+    allocation, compiler/SSA, concurrency, cache/layout, lock-free, unsafe, cgo, and
+    runtime-boundary work. Use for performance investigations, optimization reviews,
+    benchmark/profiling plans, and implementation changes that must be measured, justified,
+    documented, and regression-guarded.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
