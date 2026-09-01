@@ -1,18 +1,39 @@
 # Go Performance Engineering Handbook
 
+[English](./README.md) | [简体中文](./zh-CN/README.md)
+
 This handbook explains Go performance engineering from first principles.
 
-It is intentionally different from the Agent Skill in this repository:
+It is the human-readable knowledge layer of this repository:
 
 - `docs/` explains mechanisms, cost models, trade-offs, and engineering reasoning;
-- `skill/` turns those ideas into an operational workflow for AI agents;
-- `proofs/` contains small experiments that reproduce specific performance behaviors.
+- `skill/` converts that knowledge into an operational workflow for AI agents;
+- `proofs/` contains minimal reproducible experiments for specific performance claims.
 
-The handbook is written for engineers who want to understand **why** a Go program behaves the way it does, not only which command or optimization technique to use.
+The goal is not to collect optimization tricks. The goal is to understand **why** a Go program behaves the way it does, how to verify that behavior, and when an optimization is justified.
+
+## Languages
+
+English is the canonical version of the handbook.
+
+The Simplified Chinese translation is maintained under:
+
+```text
+docs/zh-CN/
+```
+
+The Chinese tree mirrors the English chapter and file layout so that links and concepts remain easy to compare across languages.
+
+Translation policy:
+
+- technical meaning should remain equivalent to the English source;
+- Go identifiers, commands, diagnostics, API names, and compiler/runtime terms should remain in their original form where translation would reduce precision;
+- common terms may be introduced bilingually on first use, for example `逃逸分析（escape analysis）`;
+- when the two language versions disagree on a technical claim, the English canonical document and the cited primary source take precedence.
 
 ## Scope
 
-The handbook studies performance across several layers:
+The handbook studies performance across several interacting layers:
 
 ```text
 Application design
@@ -28,29 +49,30 @@ Operating system
 CPU and memory hardware
 ```
 
-Performance problems often cross these boundaries.
+A symptom visible in one layer may originate in another.
 
-For example:
+Examples:
 
 - excessive allocation may appear as GC CPU;
-- shared counters may appear as atomic hot spots but originate from cache coherence;
-- interface abstraction may appear as call overhead but the larger loss may be missed inlining;
+- a hot atomic operation may originate from cache-line coherence;
+- interface abstraction may matter because it prevents devirtualization or inlining;
 - a tiny slice may retain a very large backing array;
-- a lock-free algorithm may consume more CPU than a mutex under contention.
+- a lock-free algorithm may consume more CPU than a mutex under contention;
+- low pause time does not rule out GC assist or concurrent GC CPU as a latency contributor.
 
-The goal of this handbook is to provide the cost models needed to reason about those effects.
+The handbook provides the cost models needed to reason across these boundaries.
 
 ## Reading Order
 
 ### 00 — Foundations
 
-Start here before studying individual techniques.
+Start here before studying individual mechanisms.
 
 - [Performance Engineering](./00-foundations/performance-engineering.md)
 - [Cost Models](./00-foundations/cost-models.md)
 - [Optimization Principles](./00-foundations/optimization-principles.md)
 
-These chapters define the vocabulary used throughout the rest of the handbook.
+These chapters define the vocabulary and evidence-oriented mindset used throughout the handbook.
 
 ### 01 — CPU and Memory
 
@@ -60,7 +82,7 @@ These chapters define the vocabulary used throughout the rest of the handbook.
 - [TLB and Pages](./01-cpu-and-memory/tlb-and-pages.md)
 - [Data Layout](./01-cpu-and-memory/data-layout.md)
 
-These chapters explain how Go data structures map onto real hardware.
+These chapters explain how access patterns and Go data structures interact with modern CPU and memory systems.
 
 ### 02 — Concurrency
 
@@ -73,7 +95,58 @@ These chapters explain how Go data structures map onto real hardware.
 - [The ABA Problem](./02-concurrency/aba.md)
 - [Ownership-Oriented Design](./02-concurrency/ownership-design.md)
 
-These chapters explain why concurrency performance is fundamentally about shared state, cache coherence, waiting, retry, and ownership.
+These chapters explain concurrency performance through shared state, cache coherence, waiting, retry, scheduling, and ownership.
+
+### 03 — Compiler
+
+- [Compiler Pipeline](./03-compiler/compiler-pipeline.md)
+- [Static Single Assignment](./03-compiler/ssa.md)
+- [Escape Analysis](./03-compiler/escape-analysis.md)
+- [Inlining](./03-compiler/inlining.md)
+- [Bounds Check Elimination](./03-compiler/bounds-check-elimination.md)
+- [Devirtualization](./03-compiler/devirtualization.md)
+- [Profile-Guided Optimization](./03-compiler/pgo.md)
+
+These chapters explain how source-level facts become compiler proofs and how those proofs can eliminate runtime work.
+
+### 04 — Memory and GC
+
+- [Allocator](./04-memory-and-gc/allocator.md)
+- [Heap Model](./04-memory-and-gc/heap-model.md)
+- [Allocation Patterns](./04-memory-and-gc/allocation-patterns.md)
+- [Garbage Collector](./04-memory-and-gc/garbage-collector.md)
+- [GC Pacing](./04-memory-and-gc/gc-pacing.md)
+- [Memory Retention](./04-memory-and-gc/retention.md)
+- [sync.Pool](./04-memory-and-gc/sync-pool.md)
+- [Memory Limits, RSS, and Scavenging](./04-memory-and-gc/memory-limits.md)
+
+These chapters separate allocation cost, allocation churn, live heap, scannable heap, retention, GC work, runtime memory, and process RSS.
+
+### 05 — Runtime Boundary
+
+- [Unsafe](./05-runtime-boundary/unsafe.md)
+- [Zero-Copy](./05-runtime-boundary/zero-copy.md)
+- [cgo](./05-runtime-boundary/cgo.md)
+- [mmap](./05-runtime-boundary/mmap.md)
+- [Runtime and Compiler Boundaries](./05-runtime-boundary/runtime-internals.md)
+
+These chapters cover the highest-risk performance techniques, where ownership, lifetime, GC visibility, ABI behavior, or private implementation contracts become part of correctness.
+
+### 06 — Methodology
+
+- [Profiling](./06-methodology/profiling.md)
+- [Benchmarking](./06-methodology/benchmarking.md)
+- [Evidence Model](./06-methodology/evidence-model.md)
+- [Optimization Review](./06-methodology/optimization-review.md)
+- [Regression Strategy](./06-methodology/regression-strategy.md)
+
+These chapters turn the previous mechanisms into a complete engineering process: locate cost, formulate a mechanism hypothesis, compare candidates, validate system impact, and preserve the result.
+
+### Sources
+
+- [Official Sources](./sources/official-sources.md)
+
+The source index records the primary Go documentation, package references, release notes, runtime/compiler source, and diagnostic tooling used by the handbook.
 
 ## How to Read Performance Claims
 
@@ -95,27 +168,28 @@ Trade-off
 
 Statements such as:
 
-> "Atomics are faster than mutexes."
+> Atomics are faster than mutexes.
 
 or:
 
-> "Zero-copy is always better."
+> Zero-copy is always better.
 
 are not useful without workload conditions.
 
 A performance result should answer:
 
 - What cost changed?
-- Under what workload?
-- What new cost was introduced?
-- How was the effect measured?
-- Does the result still hold on the target Go version and hardware?
+- Why should that mechanism affect the cost?
+- Under what workload was it measured?
+- What new cost or complexity was introduced?
+- How was the effect verified?
+- Does the result still hold on the target Go version, architecture, and hardware?
 
 ## Relationship to Proofs
 
 The handbook explains mechanisms.
 
-The `proofs/` tree should demonstrate those mechanisms with minimal reproducible experiments.
+The `proofs/` tree demonstrates selected mechanisms with minimal reproducible experiments.
 
 For example:
 
@@ -127,42 +201,51 @@ proofs/compiler/bounds-check-elimination/
         ↓ demonstrates
 ```
 
-A proof is not expected to show a universal speedup. Its job is to demonstrate that the claimed behavior can be reproduced under a documented environment.
+A proof is not expected to show a universal percentage improvement.
+
+Its job is to establish that a specific mechanism exists and can be reproduced under documented conditions.
 
 ## Relationship to the Agent Skill
 
-The Skill should not duplicate the handbook.
+The handbook and Skill intentionally serve different purposes.
 
 The handbook answers:
 
-> Why does this behavior exist?
+> Why does this behavior exist, and how should an engineer reason about it?
 
 The Skill answers:
 
-> When should an agent investigate this behavior, and what evidence is required before changing code?
+> When should an agent investigate this behavior, what evidence is required, and what actions are safe to recommend?
 
-Keeping those roles separate allows the Skill to remain compact while preserving detailed technical knowledge in this handbook.
+The Skill should therefore remain smaller, more operational, and progressively load only the references needed for the current problem.
 
 ## Version Sensitivity
 
-Compiler and runtime behavior changes over time.
+Compiler and runtime behavior evolve.
 
 Implementation-sensitive claims involving:
 
 - inlining;
 - escape analysis;
 - bounds-check elimination;
-- allocator paths;
-- GC internals;
+- devirtualization;
+- generic lowering;
+- allocator paths and thresholds;
+- garbage-collector internals;
 - runtime synchronization;
+- cgo boundary cost;
 - architecture-specific code generation;
 
 must be revalidated on the target Go toolchain.
 
 Hardware-sensitive claims must also be interpreted in the context of the target CPU, operating system, and workload.
 
-## Principle
+Historical benchmark results are useful evidence, but they are not permanent implementation contracts.
 
-The central principle of this handbook is simple:
+## Evidence Principle
+
+The central principle of this handbook is:
 
 > Optimize measured system behavior, not code cleverness.
+
+A valid performance investigation may conclude that no optimization should be made.
