@@ -37,7 +37,7 @@ The `docs/` directory contains the complete knowledge base.
 
 Start here:
 
-- [Performance Engineering Methodology](./docs/01-methodology.md)
+- [Go Performance Engineering Handbook](./docs/README.md)
 
 ## Agent Skill
 
